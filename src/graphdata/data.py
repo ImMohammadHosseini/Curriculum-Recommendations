@@ -61,11 +61,13 @@ class CurriculumDataset (InMemoryDataset) :
 
         node_types = ['topic', 'content']
         
-        topic_df = pd.read_csv(self.raw_paths[0], index_col='id', header=0)
+        topic_df = pd.read_csv(self.raw_paths[0], header=0)
         
-        topic_mapping = {idx: i for i, idx in enumerate(topic_df.index)}
+        topic_mapping = {idx: i for i, idx in enumerate(topic_df['id'])}
         
         title = topic_df['title'].apply(lambda x: self.translator.translate(x).text)
+        #eng_translate = lambda x: self.translator.translate(x).text
+        #title = np.array(list(map(eng_translate,topic[:,1])
         description = topic_df['description'].apply(
             lambda x: self.translator.translate(x).text)
         with torch.no_grad():
@@ -76,16 +78,25 @@ class CurriculumDataset (InMemoryDataset) :
             description_c = model.encode(description.values, 
                                          show_progress_bar=True,
                                          convert_to_tensor=True).to(device)
-        #channel_c
+        channel_c = topic_df['category'].astype('category').cat.codes.values
         category_c = topic_df['category'].astype('category').cat.codes.values
         language_c = topic_df['language'].astype('category').cat.codes.values
         #parent_c
+        parent = topic_df['parent'].values
+        
+        dst_parent = []
+        src_parent = []
+        for i,idx in enumerate(parent) :
+            if idx != 'bg':
+                dst_parent.append(topic_mapping[idx])
+                src_parent.append(i)
+                
         level_c = topic_df['level'].astype('category').cat.codes.values
         has_content_c = topic_df['has_content'].astype('category').cat.codes.values
         
         data['topic'].x= torch.cat([title_c,
                                     description_c,
-                                    #channel_c,
+                                    channel_c,
                                     category_c,  
                                     language_c,
                                     #parent_c,
