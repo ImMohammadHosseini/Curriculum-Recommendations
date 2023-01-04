@@ -90,7 +90,8 @@ class CurriculumDataset (InMemoryDataset) :
             if idx != 'bg':
                 dst_parent.append(topic_mapping[idx])
                 src_parent.append(i)
-                
+        parent_edge_index = torch.tensor([src_parent, dst_parent])  
+        #TODO
         level_c = topic_df['level'].astype('category').cat.codes.values
         has_content_c = topic_df['has_content'].astype('category').cat.codes.values
         
@@ -99,9 +100,10 @@ class CurriculumDataset (InMemoryDataset) :
                                     channel_c,
                                     category_c,  
                                     language_c,
-                                    #parent_c,
                                     level_c,
                                     has_content_c], dim=-1)
+        
+        
         #TODO
 # =============================================================================
 #         title
