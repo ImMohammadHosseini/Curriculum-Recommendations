@@ -61,11 +61,13 @@ class CurriculumDataset (InMemoryDataset) :
 
         node_types = ['topic', 'content']
         
-        topic_df = pd.read_csv(self.raw_paths[0], index_col='id', header=0)
+        topic_df = pd.read_csv(self.raw_paths[0], header=0)
         
-        topic_mapping = {idx: i for i, idx in enumerate(topic_df.index)}
+        topic_mapping = {idx: i for i, idx in enumerate(topic_df['id'])}
         
         title = topic_df['title'].apply(lambda x: self.translator.translate(x).text)
+        #eng_translate = lambda x: self.translator.translate(x).text
+        #title = np.array(list(map(eng_translate,topic[:,1])
         description = topic_df['description'].apply(
             lambda x: self.translator.translate(x).text)
         with torch.no_grad():
@@ -76,30 +78,69 @@ class CurriculumDataset (InMemoryDataset) :
             description_c = model.encode(description.values, 
                                          show_progress_bar=True,
                                          convert_to_tensor=True).to(device)
-        #channel_c
+        channel_c = topic_df['category'].astype('category').cat.codes.values
         category_c = topic_df['category'].astype('category').cat.codes.values
         language_c = topic_df['language'].astype('category').cat.codes.values
         #parent_c
+        parent = topic_df['parent'].values
+        
+        dst_parent = []
+        src_parent = []
+        for i,idx in enumerate(parent) :
+            if idx != 'bg':
+                dst_parent.append(topic_mapping[idx])
+                src_parent.append(i)
+        parent_edge_index = torch.tensor([src_parent, dst_parent])  
+        #TODO
         level_c = topic_df['level'].astype('category').cat.codes.values
         has_content_c = topic_df['has_content'].astype('category').cat.codes.values
         
         data['topic'].x= torch.cat([title_c,
                                     description_c,
-                                    #channel_c,
+                                    channel_c,
                                     category_c,  
                                     language_c,
-                                    #parent_c,
                                     level_c,
                                     has_content_c], dim=-1)
-        #TODO
-# =============================================================================
-#         title
-#         description
-#         language
-#         kind
-#         text
-#         copyright_holder
-#         licenses
-# =============================================================================
+        
+        
+        content_df = pd.read_csv(self.raw_paths[1], header=0)
+        
+        content_mapping = {idx: i for i, idx in enumerate(content_df['id'])}
+ 
+        c_title = content_df['title'].apply(
+            lambda x: self.translator.translate(x).text)
+        c_description = content_df['description'].apply(
+            lambda x: self.translator.translate(x).text)
+        c_text = content_df['text'].apply(
+            lambda x: self.translator.translate(x).text)
+        with torch.no_grad():
+            c_title_c = model.encode(c_title.values, 
+                                     show_progress_bar=True,
+                                     convert_to_tensor=True).to(device)
+        
+            c_description_c = model.encode(c_description.values, 
+                                           show_progress_bar=True,
+                                           convert_to_tensor=True).to(device)
+            
+            c_text_c = model.encode(c_text.values, 
+                                    show_progress_bar=True,
+                                    convert_to_tensor=True).to(device)
+            
+        c_language_c = topic_df['language'].astype('category').cat.codes.values
+        c_kind_c = topic_df['kind'].astype('category').cat.codes.values
+        c_copyright_holder_c = topic_df['copyright_holder'].astype(
+            'category').cat.codes.values
+        c_license_c =topic_df['license'].astype('category').cat.codes.values
+
+        data['content'].x= torch.cat([c_title_c,
+                                      c_description_c,
+                                      c_kind_c,
+                                      c_text_c,  
+                                      c_language_c,
+                                      c_copyright_holder_c,
+                                      c_license_c], dim=-1)
+
+
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}()'
