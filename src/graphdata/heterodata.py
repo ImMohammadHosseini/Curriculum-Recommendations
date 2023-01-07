@@ -91,7 +91,7 @@ class CurriculumDataset (InMemoryDataset) :
                 dst_parent.append(topic_mapping[idx])
                 src_parent.append(i)
         parent_edge_index = torch.tensor([src_parent, dst_parent])  
-        #TODO
+        
         level_c = topic_df['level'].astype('category').cat.codes.values
         has_content_c = topic_df['has_content'].astype('category').cat.codes.values
         
@@ -141,6 +141,21 @@ class CurriculumDataset (InMemoryDataset) :
                                       c_copyright_holder_c,
                                       c_license_c], dim=-1)
 
-
+        correlation_df = pd.read_csv(self.raw_paths[2], header=0)
+        
+        topic_correlation = correlation_df['topic_id'].values
+        
+        dst_correlation = []
+        src_correlation = []
+        for i, to_id in enumerate(topic_correlation) :
+            for co_id in topic_correlation['content_ids'][i]:
+                src_correlation.append(topic_mapping[to_id])
+                dst_correlation.append(content_mapping[co_id])
+            
+        correlation_edge_index = torch.tensor([src_correlation, dst_correlation])
+        
+        data['topic','parent','topic'].edge_index = parent_edge_index
+        data['topic','parent','content'].edge_index = correlation_edge_index
+        
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}()'
