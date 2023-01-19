@@ -1,0 +1,32 @@
+download_ref:
+  site: 'kaggel.com'
+  title: 'Learning Equality - Curriculum Recommendations'
+  link: 
+
+local_info:
+  save_path:
+  
+data_params:
+  data_path: "data/"
+  train_batch_size: 256
+  val_batch_size:  256
+  patch_size: 64
+  num_workers: 4
+
+
+exp_params:
+  LR: 0.005
+  weight_decay: 0.0
+  scheduler_gamma: 0.95
+  kld_weight: 0.00025
+  manual_seed: 1265
+
+trainer_params:
+  gpus: 1
+  max_epochs: 100
+
+logging_params:
+  save_dir: "model/save_model/"
+  load_dir: "model/save_model/autoencoder/version_0/checkpoints/last.ckpt"
+  name: "autoencoder"
+  
