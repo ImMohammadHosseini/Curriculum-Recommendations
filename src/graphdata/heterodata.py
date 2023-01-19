@@ -10,6 +10,7 @@ from typing import Callable, List, Optional
 #from langdetect import detect_langs
 from googletrans import Translator
 from sentence_transformers import SentenceTransformer
+from easynmt import EasyNMT
 
 import os
 import torch
@@ -34,10 +35,8 @@ class CurriculumDataset (InMemoryDataset) :
         self.model_name = model_name
         self.translator = Translator()
         super().__init__(os.getcwd()+root, transform, pre_transform)
-        print(self.raw_paths[0])
         self.data, self.slices = torch.load(self.processed_paths[0])
         self.translator = Translator()
-        print(self.raw_paths[0])
     
     @property
     def raw_file_names(self) -> List[str]:
@@ -55,6 +54,7 @@ class CurriculumDataset (InMemoryDataset) :
 
     
     def process(self):
+        print(self.processed_paths[0])
         data = HeteroData()
         model = SentenceTransformer(self.model_name)
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -65,11 +65,13 @@ class CurriculumDataset (InMemoryDataset) :
         
         topic_mapping = {idx: i for i, idx in enumerate(topic_df['id'])}
         
-        title = topic_df['title'].apply(lambda x: self.translator.translate(x).text)
+        translate_func = lambda x: self.translator.translate(x).text \
+            if self.translator.detect(x) != 'en' \
+            else x 
+        title = topic_df['title'].apply(translate_func)
         #eng_translate = lambda x: self.translator.translate(x).text
         #title = np.array(list(map(eng_translate,topic[:,1])
-        description = topic_df['description'].apply(
-            lambda x: self.translator.translate(x).text)
+        description = topic_df['description'].apply(translate_func)
         with torch.no_grad():
             title_c = model.encode(title.values, 
                                    show_progress_bar=True,
@@ -108,12 +110,9 @@ class CurriculumDataset (InMemoryDataset) :
         
         content_mapping = {idx: i for i, idx in enumerate(content_df['id'])}
  
-        c_title = content_df['title'].apply(
-            lambda x: self.translator.translate(x).text)
-        c_description = content_df['description'].apply(
-            lambda x: self.translator.translate(x).text)
-        c_text = content_df['text'].apply(
-            lambda x: self.translator.translate(x).text)
+        c_title = content_df['title'].apply(translate_func)
+        c_description = content_df['description'].apply(translate_func)
+        c_text = content_df['text'].apply(translate_func)
         with torch.no_grad():
             c_title_c = model.encode(c_title.values, 
                                      show_progress_bar=True,
@@ -156,6 +155,21 @@ class CurriculumDataset (InMemoryDataset) :
         
         data['topic','parent','topic'].edge_index = parent_edge_index
         data['topic','parent','content'].edge_index = correlation_edge_index
+        
+        
+# =============================================================================
+#         if self.pre_filter is not None:
+#             data_list = [data for data in data_list if self.pre_filter(data)]
+# 
+#         if self.pre_transform is not None:
+#             data_list = [self.pre_transform(data) for data in data_list]
+#             
+#         data, slices = self.collate(data_list)
+#         torch.save((data, slices), self.processed_paths[0])    
+# =============================================================================
+
+        torch.save(self.collate([data]), self.processed_paths[0])
+        
         
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}()'
